@@ -861,17 +861,19 @@ function renderTeams() {
 }
 
 // ─── Render My Team ──────────────────────────────────────────────────────────
-const DEFAULT_TEAM = 'James Giltner';
-
 function populateMyTeamSelect() {
   const sel = document.getElementById('myteam-select');
   if (!sel || sel.options.length > 0) return;
+  // Add blank prompt option first
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '— Select a team —';
+  sel.appendChild(blank);
   const names = [...new Set(POOL.map(e => e.name))].sort();
   names.forEach(n => {
     const opt = document.createElement('option');
     opt.value = n;
     opt.textContent = n;
-    if (n === DEFAULT_TEAM) opt.selected = true;
     sel.appendChild(opt);
   });
 }
@@ -879,10 +881,14 @@ function populateMyTeamSelect() {
 function renderMyTeam() {
   populateMyTeamSelect();
   const sel = document.getElementById('myteam-select');
-  const teamName = sel?.value || DEFAULT_TEAM;
+  const teamName = sel?.value || '';
   const entry = POOL.find(e => e.name === teamName);
   const container = document.getElementById('myteam-container');
-  if (!container || !entry) return;
+  if (!container) return;
+  if (!entry) {
+    container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Select a team from the dropdown above</div>';
+    return;
+  }
 
   const picks = [
     {label:'Tier 1', name: entry.t1},
@@ -986,9 +992,26 @@ function hideErr() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-fetchScores();
-setInterval(() => fetchScores(), 5 * 60 * 1000); // auto-refresh every 5 min
+const URL_TEAM = new URLSearchParams(window.location.search).get('team');
+
 populateMyTeamSelect();
+
+// If URL has ?team=, select it and switch to My Team tab immediately
+if (URL_TEAM) {
+  const sel = document.getElementById('myteam-select');
+  const opts = [...sel.options];
+  const match = opts.find(o => o.value.toLowerCase() === URL_TEAM.toLowerCase())
+             || opts.find(o => o.value.toLowerCase().includes(URL_TEAM.toLowerCase()));
+  if (match) {
+    sel.value = match.value;
+    const btn = [...document.querySelectorAll('nav button')]
+      .find(b => b.textContent.trim() === 'My Team');
+    showPanel('myteam', btn);
+  }
+}
+
+fetchScores();
+setInterval(() => fetchScores(), 5 * 60 * 1000);
 </script>
 </body>
 </html>
