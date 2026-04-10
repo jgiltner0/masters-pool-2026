@@ -986,32 +986,30 @@ function hideErr() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-fetchScores();
-setInterval(() => fetchScores(), 5 * 60 * 1000); // auto-refresh every 5 min
-populateMyTeamSelect();
+// Check for ?team= URL param — stored here so fetchScores callback can use it
+const URL_TEAM = new URLSearchParams(window.location.search).get('team');
 
-// If ?team=Name is in the URL, auto-switch to My Team tab for that person
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const team = params.get('team');
-  if (team) {
-    const sel = document.getElementById('myteam-select');
-    if (sel) {
-      // Find the closest matching option
-      const opts = [...sel.options];
-      const match = opts.find(o => o.value.toLowerCase() === team.toLowerCase())
-                 || opts.find(o => o.value.toLowerCase().includes(team.toLowerCase()));
-      if (match) {
-        sel.value = match.value;
-        renderMyTeam();
-        // Switch to My Team tab
-        const btn = [...document.querySelectorAll('nav button')]
-          .find(b => b.textContent.trim() === 'My Team');
-        showPanel('myteam', btn);
-      }
-    }
+function applyUrlTeam() {
+  if (!URL_TEAM) return;
+  populateMyTeamSelect();
+  const sel = document.getElementById('myteam-select');
+  if (!sel) return;
+  const opts = [...sel.options];
+  const match = opts.find(o => o.value.toLowerCase() === URL_TEAM.toLowerCase())
+             || opts.find(o => o.value.toLowerCase().includes(URL_TEAM.toLowerCase()));
+  if (match) {
+    sel.value = match.value;
+    const btn = [...document.querySelectorAll('nav button')]
+      .find(b => b.textContent.trim() === 'My Team');
+    showPanel('myteam', btn);
+    renderMyTeam();
   }
-})();
+}
+
+fetchScores().then(applyUrlTeam);
+setInterval(() => fetchScores(), 5 * 60 * 1000);
+populateMyTeamSelect();
+if (!URL_TEAM) { /* default tab stays Overall */ }
 </script>
 </body>
 </html>
