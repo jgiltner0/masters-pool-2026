@@ -573,24 +573,23 @@ const ESPN_URLS = [
 
 // Load locked round data from local browser cache on startup
 function loadLocalLocks() {
-  for (let r = 1; r <= 4; r++) {
-    try {
-      const raw = localStorage.getItem(`masters_lock_r${r}`);
-      if (!raw) continue;
+  try {
+    const raw = localStorage.getItem('masters_locked_scores');
+    if (raw) {
       const data = JSON.parse(raw);
-      if (data && data.players && !lockedRounds[r]) {
-        lockedRounds[r] = data.players;
-        log(`Loaded cached R${r} scores (locked ${new Date(data.ts).toLocaleDateString()})`);
+      if (data && data.players && !lockedRounds['all']) {
+        lockedRounds['all'] = data.players;
+        log(`Loaded cached scores (saved ${new Date(data.ts).toLocaleDateString()})`);
       }
-    } catch(e) { /* ignore */ }
-  }
+    }
+  } catch(e) { /* ignore */ }
 }
 
 // Load locked scores from Google Sheet (public CSV export)
 async function loadLockedRoundsFromSheet() {
   try {
     // Primary source: standalone locked scores CSV in Drive (publicly readable)
-    const CSV_LOCKED_ID = '195KpLZ4QjIEhR_H_ltSy6yGmk9QIQBDVDUNuFcuByH8';
+    const CSV_LOCKED_ID = '1rbJVGWjBRzQswWyTIXSetK5BXS99LTDeYQN8Rncai5Q';
     const url = `https://drive.google.com/uc?export=download&id=${CSV_LOCKED_ID}`;
     const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) { log('Sheet fetch returned ' + r.status); return; }
@@ -599,27 +598,25 @@ async function loadLockedRoundsFromSheet() {
       row.split(',').map(c => c.replace(/^"|"$/g, '').trim())
     );
     if (rows.length < 2) { log('Sheet empty'); return; }
-    const newLocked = {};
+    // Schema: Name, R1, R2, R3, R4, MC, WD — one row per player
+    const parsed = [];
     for (let i = 1; i < rows.length; i++) {
-      const [round, name, r1, r2, r3, r4, mc, wd] = rows[i];
-      const rn = parseInt(round);
-      if (!rn || !name) continue;
-      if (!newLocked[rn]) newLocked[rn] = [];
-      newLocked[rn].push({
+      const [name, r1, r2, r3, r4, mc, wd] = rows[i];
+      if (!name) continue;
+      const toNum = v => (v !== '' && v !== undefined) ? parseFloat(v) : null;
+      parsed.push({
         name,
-        rounds: [
-          r1 !== '' && r1 !== undefined ? parseFloat(r1) : null,
-          r2 !== '' && r2 !== undefined ? parseFloat(r2) : null,
-          r3 !== '' && r3 !== undefined ? parseFloat(r3) : null,
-          r4 !== '' && r4 !== undefined ? parseFloat(r4) : null,
-        ],
-        mc: mc === 'true' || mc === 'TRUE',
-        wd: wd === 'true' || wd === 'TRUE'
+        rounds: [toNum(r1), toNum(r2), toNum(r3), toNum(r4)],
+        mc: mc === 'true' || mc === 'True' || mc === 'TRUE',
+        wd: wd === 'true' || wd === 'True' || wd === 'TRUE'
       });
     }
-    // Merge sheet data into lockedRounds (sheet takes priority over local cache)
-    Object.assign(lockedRounds, newLocked);
-    log(`Sheet: locked rounds ${Object.keys(newLocked).join(', ')}`);
+    // Store as a flat lookup, keyed by normalised name
+    // We expose it as lockedRounds['all'] for the getScore merger
+    if (parsed.length) {
+      lockedRounds['all'] = parsed;
+      log(`Sheet: loaded ${parsed.length} player records`);
+    }
   } catch(e) {
     log('Could not load sheet: ' + e.message);
   }
@@ -641,27 +638,56 @@ async function lockRound(round) {
   if (btn) { btn.disabled = true; btn.textContent = 'Locking…'; }
   try {
     // Build full CSV (all rounds: preserve existing + overwrite current)
-    const allRows = [['Round','Name','R1','R2','R3','R4','MC','WD']];
-    const rn = v => (v !== null && v !== undefined) ? v : '';
-    // Existing locked rounds (skip the one we're overwriting)
-    for (const [lr, entries] of Object.entries(lockedRounds)) {
-      if (parseInt(lr) === round) continue;
-      for (const e of entries) allRows.push([lr, e.name, rn(e.rounds[0]), rn(e.rounds[1]), rn(e.rounds[2]), rn(e.rounds[3]), e.mc, e.wd]);
-    }
-    // Current ESPN round
+    // Schema: Name, R1, R2, R3, R4, MC, WD — one row per player
+    const allRows = [['Name','R1','R2','R3','R4','MC','WD']];
+    const rv = v => (v !== null && v !== undefined) ? v : '';
+    const norm = n => stripAccents(n).toLowerCase().trim();
+    // Start from existing locked data (one entry per player)
+    const allLocked = (lockedRounds['all'] || []).map(e => ({...e, rounds: [...e.rounds]}));
+    // Merge in the current round's ESPN data
     for (const p of players) {
-      allRows.push([round, p.name, rn(p.rounds[0]), rn(p.rounds[1]), rn(p.rounds[2]), rn(p.rounds[3]), p.mc, p.wd]);
+      const existing = allLocked.find(e =>
+        norm(e.name) === norm(p.name) ||
+        e.name.split(' ').pop().toLowerCase() === p.name.split(' ').pop().toLowerCase()
+      );
+      if (existing) {
+        existing.rounds[round - 1] = p.rounds[round - 1];
+        existing.mc = p.mc;
+        existing.wd = p.wd;
+      } else {
+        const entry = { name: p.name, rounds: [null,null,null,null], mc: p.mc, wd: p.wd };
+        entry.rounds[round - 1] = p.rounds[round - 1];
+        allLocked.push(entry);
+      }
+    }
+    for (const e of allLocked) {
+      allRows.push([e.name, rv(e.rounds[0]), rv(e.rounds[1]), rv(e.rounds[2]), rv(e.rounds[3]), e.mc, e.wd]);
     }
     const csv = allRows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
 
     // Save to localStorage
-    localStorage.setItem(`masters_lock_r${round}`, JSON.stringify({
-      round, ts: new Date().toISOString(),
-      players: players.map(p => ({ name: p.name, rounds: [...p.rounds], mc: p.mc, wd: p.wd }))
+    localStorage.setItem('masters_locked_scores', JSON.stringify({
+      ts: new Date().toISOString(),
+      players: (lockedRounds['all'] || []).map(e => ({ name: e.name, rounds: [...e.rounds], mc: e.mc, wd: e.wd }))
     }));
 
-    // Update in-memory locked data immediately
-    lockedRounds[round] = players.map(p => ({ name: p.name, rounds: [...(p.rounds||[null,null,null,null])], mc: p.mc, wd: p.wd }));
+    // Update in-memory locked data immediately (flat, one entry per player)
+    const norm2 = n => stripAccents(n).toLowerCase().trim();
+    if (!lockedRounds['all']) lockedRounds['all'] = [];
+    for (const p of players) {
+      const existing = lockedRounds['all'].find(e =>
+        norm2(e.name) === norm2(p.name) ||
+        e.name.split(' ').pop().toLowerCase() === p.name.split(' ').pop().toLowerCase()
+      );
+      if (existing) {
+        if (p.rounds[round-1] !== null) existing.rounds[round-1] = p.rounds[round-1];
+        existing.mc = p.mc; existing.wd = p.wd;
+      } else {
+        const entry = { name: p.name, rounds: [null,null,null,null], mc: p.mc, wd: p.wd };
+        entry.rounds[round-1] = p.rounds[round-1];
+        lockedRounds['all'].push(entry);
+      }
+    }
 
     // Copy full CSV to clipboard
     try { await navigator.clipboard.writeText(csv); } catch(e) { /* clipboard may not be available */ }
@@ -761,24 +787,22 @@ function getScore(name) {
   // If we have no locked data, return live directly
   if (!Object.keys(lockedRounds).length) return live;
 
-  // Build merged object using locked rounds for completed rounds
+  // Build merged object: use locked data where available
   const merged = { ...live, rounds: [...(live.rounds || [null,null,null,null])] };
-  for (const [rn, entries] of Object.entries(lockedRounds)) {
-    const rIdx = parseInt(rn) - 1;
-    const norm = n => stripAccents(n).toLowerCase().trim();
-    const locked = entries.find(e =>
-      norm(e.name) === norm(name) ||
-      e.name.split(' ').pop().toLowerCase() === name.split(' ').pop().toLowerCase()
-    );
-    if (locked) {
-      if (locked.rounds[rIdx] !== null && locked.rounds[rIdx] !== undefined)
-        merged.rounds[rIdx] = locked.rounds[rIdx];
-      // Override mc/wd for fully locked rounds
-      if (parseInt(rn) < currentRound) {
-        merged.mc = locked.mc;
-        merged.wd = locked.wd;
-      }
-    }
+  const norm = n => stripAccents(n).toLowerCase().trim();
+  const allLocked = lockedRounds['all'] || [];
+  const locked = allLocked.find(e =>
+    norm(e.name) === norm(name) ||
+    e.name.split(' ').pop().toLowerCase() === name.split(' ').pop().toLowerCase()
+  );
+  if (locked) {
+    // Override each round slot where locked data exists
+    locked.rounds.forEach((v, i) => {
+      if (v !== null && v !== undefined) merged.rounds[i] = v;
+    });
+    // mc/wd from locked data is authoritative for completed rounds
+    merged.mc = locked.mc;
+    merged.wd = locked.wd;
   }
   // Recompute total from rounds
   const played = merged.rounds.filter(r => r !== null);
