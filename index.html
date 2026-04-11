@@ -134,6 +134,26 @@
 
   /* Today scoring note */
   .scoring-note { font-size: 11px; color: var(--text3); margin-top: 6px; text-align: center; }
+  .how-it-works {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    margin-bottom: 12px;
+    font-size: 12.5px;
+    color: var(--text2);
+    line-height: 1.65;
+  }
+  .how-it-works strong { color: var(--text); font-weight: 600; }
+  .how-it-works .hiw-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 5px;
+  }
 </style>
 </head>
 <body>
@@ -150,7 +170,7 @@
 
   <nav>
     <button class="active" onclick="showPanel('overall',this)">Overall</button>
-    <button onclick="showPanel('daily',this)">Today</button>
+    <button onclick="showPanel('daily',this)">Daily</button>
     <button onclick="showPanel('tourney',this)">Leaderboard</button>
     <button onclick="showPanel('myteam',this)">My Team</button>
     <button onclick="showPanel('teams',this)">All Teams</button>
@@ -168,6 +188,10 @@
       <div class="metric"><div class="metric-label">Round</div><div class="metric-val" id="m-round">—</div></div>
     </div>
     <div class="search-row"><input id="s-overall" type="text" placeholder="Search name..." oninput="renderOverall()"></div>
+    <div class="how-it-works">
+      <div class="hiw-title">How overall scoring works</div>
+      Each team picks <strong>6 golfers</strong> across 4 tiers + 2 wild cards. Your team score is the <strong>combined total of your best 4 golfers</strong> (lowest to par) across all completed rounds. Golfers who <strong>miss the cut</strong> or withdraw receive a <strong>+6 penalty per remaining round</strong> (max +12 over R3 &amp; R4). Lower is better — the pool leader has the lowest cumulative score.
+    </div>
     <div class="card"><table><thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Key golfers</th></tr></thead><tbody id="overall-body"></tbody></table></div>
     <div class="pgs" id="overall-pgs"></div>
     <div class="last-upd" id="upd-overall"></div>
@@ -176,14 +200,26 @@
   <!-- DAILY -->
   <div id="panel-daily" class="panel">
     <div class="metrics">
-      <div class="metric"><div class="metric-label">Today's Leader</div><div class="metric-val" id="d-leader" style="font-size:13px">—</div><div class="metric-sub" id="d-leader-sc" style="color:var(--green)">—</div></div>
+      <div class="metric"><div class="metric-label">Round Leader</div><div class="metric-val" id="d-leader" style="font-size:13px">—</div><div class="metric-sub" id="d-leader-sc" style="color:var(--green)">—</div></div>
       <div class="metric"><div class="metric-label">R1/R2 Prize</div><div class="metric-val">$150</div></div>
       <div class="metric"><div class="metric-label">R3/R4 Prize</div><div class="metric-val">$100</div></div>
       <div class="metric"><div class="metric-label">Tiebreaker</div><div class="metric-val" style="font-size:11px;padding-top:4px">Holes 4,5,<br>10,11,12</div></div>
     </div>
-    <div class="search-row"><input id="s-daily" type="text" placeholder="Search name..." oninput="renderDaily()"></div>
-    <div class="card"><table><thead><tr><th>Rank</th><th>Name</th><th>Today</th><th>Golfer scores</th></tr></thead><tbody id="daily-body"></tbody></table></div>
-    <div class="scoring-note" id="scoring-note">Rounds 1 &amp; 2: all 6 golfers · Rounds 3 &amp; 4: top 4 only</div>
+    <div class="search-row">
+      <input id="s-daily" type="text" placeholder="Search name..." oninput="renderDaily()">
+      <select id="round-select" onchange="renderDaily()" style="flex:0 0 auto;padding:7px 10px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);cursor:pointer">
+        <option value="1">Round 1</option>
+        <option value="2">Round 2</option>
+        <option value="3">Round 3</option>
+        <option value="4">Round 4</option>
+      </select>
+    </div>
+    <div class="how-it-works" id="daily-how-it-works">
+      <div class="hiw-title">How daily scoring works</div>
+      <span id="daily-hiw-text">This tab shows each team's score for a single round. Use the dropdown to switch rounds. <strong>Rounds 1 &amp; 2:</strong> all 6 golfers count toward your daily score. <strong>Rounds 3 &amp; 4:</strong> only your <strong>top 4</strong> (lowest scores) count. Columns show each golfer's score for that round — <strong>E</strong> means the round hasn't been played yet, and a <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means the golfer missed the cut and receives a +6 penalty.</span>
+    </div>
+    <div class="card" style="overflow-x:auto"><table><thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>WC1</th><th>WC2</th></tr></thead><tbody id="daily-body"></tbody></table></div>
+    <div class="scoring-note" id="scoring-note">R1 &amp; R2: all 6 golfers count · R3 &amp; R4: top 4 only</div>
     <div class="last-upd" id="upd-daily"></div>
   </div>
 
@@ -204,13 +240,21 @@
       </select>
     </div>
     <div class="card" style="overflow-x:auto"><table><thead><tr><th>Pos</th><th>Player</th><th>Total</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th><th>Thru</th></tr></thead><tbody id="tourney-body"></tbody></table></div>
-    <button class="refresh-btn" onclick="fetchScores(true)"><span id="refresh-icon">↻</span> Refresh scores</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+      <button class="refresh-btn" onclick="fetchScores(true)"><span id="refresh-icon">↻</span> Refresh</button>
+      <button id="lock-btn" class="refresh-btn" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="lockRound(currentRound)">🔒 Lock R<span id="lock-r-label">?</span></button>
+      <span id="lock-status" style="font-size:12px;color:var(--text2)"></span>
+    </div>
     <div class="last-upd" id="upd-tourney"></div>
   </div>
 
   <!-- TEAMS -->
   <div id="panel-teams" class="panel">
     <div class="search-row"><input id="s-teams" type="text" placeholder="Search name..." oninput="renderTeams()"></div>
+    <div class="how-it-works">
+      <div class="hiw-title">How to read team cards</div>
+      Each card shows a team's <strong>current overall score</strong> and rank alongside their 6 golfers. Scores shown are <strong>cumulative to-par totals</strong> for all completed rounds. Your team score is the sum of your <strong>best 4 out of 6</strong> golfers — <span style="background:var(--green-light);color:var(--green);font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600">green</span> highlights the 4 counting golfers. Missed cut players (<span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span>) add +6 per remaining round to your total.
+    </div>
     <div id="teams-container"></div>
     <div class="pgs" id="teams-pgs"></div>
   </div>
@@ -245,6 +289,10 @@
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap">
       <label style="font-size:13px;color:var(--text2);font-weight:500">Viewing team:</label>
       <select id="myteam-select" onchange="renderMyTeam()" style="flex:1;min-width:160px;padding:7px 10px;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);cursor:pointer"></select>
+    </div>
+    <div class="how-it-works" style="margin-top:0">
+      <div class="hiw-title">How to read your scorecard</div>
+      Your 6 golfers are shown across <strong>4 tiers + 2 wild cards</strong>. The <strong>overall score</strong> uses your best 4 of 6 golfers' cumulative totals. In <strong>R3 &amp; R4</strong> only your top 4 for that day count — golfers counting toward your score are <span style="background:var(--green-light);color:var(--green);font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600">highlighted green</span>. A <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means that golfer missed the cut and carries a +6 penalty per remaining round.
     </div>
     <div id="myteam-container"></div>
   </div>
@@ -388,6 +436,8 @@ let currentRound = 2;
 let cutScore = null;
 let lastFetch = null;
 let isFetching = false;
+let lockedRounds = {};
+let lockInProgress = false;
 let overallPage = 1, teamsPage = 1;
 const PER = 20, TPER = 8;
 
@@ -415,6 +465,16 @@ function parseESPN(data) {
     if (!comp) throw new Error('No competition in event');
 
     currentRound = event.status?.period || 2;
+    // Update lock button label and status
+    const lockLabel = document.getElementById('lock-r-label');
+    if (lockLabel) lockLabel.textContent = currentRound;
+    const lockStatus = document.getElementById('lock-status');
+    if (lockStatus) {
+      const locked = Object.keys(lockedRounds).map(Number).filter(r => r < currentRound);
+      lockStatus.textContent = locked.length
+        ? `R${locked.join(',')} locked · R${currentRound} live`
+        : `R${currentRound} live · no rounds locked yet`;
+    }
     const statusDesc = event.status?.type?.description || 'In Progress';
 
     // Cut line — try several sources ESPN uses
@@ -501,10 +561,123 @@ function parseESPN(data) {
 
 // Fetch directly from ESPN — no proxy needed, ESPN allows browser CORS requests.
 // Try multiple URL variants in case one stops working.
+const SHEET_ID = '1V2TtV21-ydEN6DpRqH0IdYdGOw6MAaezNlvUScQriQE';
+const SHEET_SCORES_TAB = 'Scores';
 const ESPN_URLS = [
   'https://site.web.api.espn.com/apis/site/v2/sports/golf/leaderboard?league=pga&event=401811941',
   'https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?event=401811941',
 ];
+
+
+// ─── Google Sheets DB ────────────────────────────────────────────────────────
+
+// Load locked round data from local browser cache on startup
+function loadLocalLocks() {
+  for (let r = 1; r <= 4; r++) {
+    try {
+      const raw = localStorage.getItem(`masters_lock_r${r}`);
+      if (!raw) continue;
+      const data = JSON.parse(raw);
+      if (data && data.players && !lockedRounds[r]) {
+        lockedRounds[r] = data.players;
+        log(`Loaded cached R${r} scores (locked ${new Date(data.ts).toLocaleDateString()})`);
+      }
+    } catch(e) { /* ignore */ }
+  }
+}
+
+// Load locked scores from Google Sheet (public CSV export)
+async function loadLockedRoundsFromSheet() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_SCORES_TAB)}`;
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) { log('Sheet fetch returned ' + r.status); return; }
+    const text = await r.text();
+    const rows = text.trim().split('\n').map(row =>
+      row.split(',').map(c => c.replace(/^"|"$/g, '').trim())
+    );
+    if (rows.length < 2) { log('Sheet empty'); return; }
+    const newLocked = {};
+    for (let i = 1; i < rows.length; i++) {
+      const [round, name, r1, r2, r3, r4, mc, wd] = rows[i];
+      const rn = parseInt(round);
+      if (!rn || !name) continue;
+      if (!newLocked[rn]) newLocked[rn] = [];
+      newLocked[rn].push({
+        name,
+        rounds: [
+          r1 !== '' && r1 !== undefined ? parseFloat(r1) : null,
+          r2 !== '' && r2 !== undefined ? parseFloat(r2) : null,
+          r3 !== '' && r3 !== undefined ? parseFloat(r3) : null,
+          r4 !== '' && r4 !== undefined ? parseFloat(r4) : null,
+        ],
+        mc: mc === 'true' || mc === 'TRUE',
+        wd: wd === 'true' || wd === 'TRUE'
+      });
+    }
+    // Merge sheet data into lockedRounds (sheet takes priority over local cache)
+    Object.assign(lockedRounds, newLocked);
+    log(`Sheet: locked rounds ${Object.keys(newLocked).join(', ')}`);
+  } catch(e) {
+    log('Could not load sheet: ' + e.message);
+  }
+}
+
+// Lock current ESPN round data — saves to localStorage + copies CSV to clipboard
+async function lockRound(round) {
+  if (lockInProgress) return;
+  if (!players.length) { alert('No score data loaded yet.'); return; }
+  const confirmed = confirm(
+    `Lock Round ${round} scores?\n\nThis will:\n` +
+    `• Save scores locally in your browser\n` +
+    `• Copy a CSV to your clipboard to paste into the Google Sheet\n\n` +
+    `Re-locking will overwrite the previous lock for R${round}.`
+  );
+  if (!confirmed) return;
+  lockInProgress = true;
+  const btn = document.getElementById('lock-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Locking…'; }
+  try {
+    // Build full CSV (all rounds: preserve existing + overwrite current)
+    const allRows = [['Round','Name','R1','R2','R3','R4','MC','WD']];
+    const rn = v => (v !== null && v !== undefined) ? v : '';
+    // Existing locked rounds (skip the one we're overwriting)
+    for (const [lr, entries] of Object.entries(lockedRounds)) {
+      if (parseInt(lr) === round) continue;
+      for (const e of entries) allRows.push([lr, e.name, rn(e.rounds[0]), rn(e.rounds[1]), rn(e.rounds[2]), rn(e.rounds[3]), e.mc, e.wd]);
+    }
+    // Current ESPN round
+    for (const p of players) {
+      allRows.push([round, p.name, rn(p.rounds[0]), rn(p.rounds[1]), rn(p.rounds[2]), rn(p.rounds[3]), p.mc, p.wd]);
+    }
+    const csv = allRows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+
+    // Save to localStorage
+    localStorage.setItem(`masters_lock_r${round}`, JSON.stringify({
+      round, ts: new Date().toISOString(),
+      players: players.map(p => ({ name: p.name, rounds: [...p.rounds], mc: p.mc, wd: p.wd }))
+    }));
+
+    // Update in-memory locked data immediately
+    lockedRounds[round] = players.map(p => ({ name: p.name, rounds: [...(p.rounds||[null,null,null,null])], mc: p.mc, wd: p.wd }));
+
+    // Copy full CSV to clipboard
+    try { await navigator.clipboard.writeText(csv); } catch(e) { /* clipboard may not be available */ }
+
+    renderAll();
+    alert(
+      `✓ Round ${round} locked!\n\n` +
+      `Scores saved in your browser cache.\n\n` +
+      `CSV copied to clipboard — paste it into the "Scores" tab of the Masters Pool sheet to save permanently:\n` +
+      `docs.google.com/spreadsheets/d/${SHEET_ID}`
+    );
+  } catch(e) {
+    alert('Lock failed: ' + e.message);
+  } finally {
+    lockInProgress = false;
+    if (btn) { btn.disabled = false; btn.textContent = `🔒 Lock R${currentRound}`; }
+  }
+}
 
 async function fetchScores(manual = false) {
   if (isFetching) return;
@@ -557,7 +730,7 @@ function stripAccents(s) {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-function getScore(name) {
+function getRawScore(name) {
   // 1. Exact match (lowercase)
   const n = name.toLowerCase().trim();
   if (scores[n]) return scores[n];
@@ -579,6 +752,39 @@ function getScore(name) {
   return null;
 }
 
+// Merged getScore: live ESPN data + override with locked round data
+function getScore(name) {
+  const live = getRawScore(name);
+  if (!live) return null;
+  // If we have no locked data, return live directly
+  if (!Object.keys(lockedRounds).length) return live;
+
+  // Build merged object using locked rounds for completed rounds
+  const merged = { ...live, rounds: [...(live.rounds || [null,null,null,null])] };
+  for (const [rn, entries] of Object.entries(lockedRounds)) {
+    const rIdx = parseInt(rn) - 1;
+    const norm = n => stripAccents(n).toLowerCase().trim();
+    const locked = entries.find(e =>
+      norm(e.name) === norm(name) ||
+      e.name.split(' ').pop().toLowerCase() === name.split(' ').pop().toLowerCase()
+    );
+    if (locked) {
+      if (locked.rounds[rIdx] !== null && locked.rounds[rIdx] !== undefined)
+        merged.rounds[rIdx] = locked.rounds[rIdx];
+      // Override mc/wd for fully locked rounds
+      if (parseInt(rn) < currentRound) {
+        merged.mc = locked.mc;
+        merged.wd = locked.wd;
+      }
+    }
+  }
+  // Recompute total from rounds
+  const played = merged.rounds.filter(r => r !== null);
+  if (played.length) merged.total = played.reduce((a,b)=>a+b,0);
+  return merged;
+}
+
+
 function golfers(e) { return [e.t1, e.t2, e.t3, e.t4, e.wc1, e.wc2]; }
 
 function teamTotal(e) {
@@ -596,6 +802,35 @@ function teamToday(e) {
   const ss = golfers(e).map(n => getScore(n)?.today || 0);
   if (currentRound <= 2) return ss.reduce((a,b)=>a+b,0);
   return [...ss].sort((a,b)=>a-b).slice(0,4).reduce((a,b)=>a+b,0);
+}
+
+// Get a golfer's score for a specific round (1-4), or null if not yet played
+function golferRoundScore(name, round) {
+  const s = getScore(name);
+  if (!s) return null;
+  // If player MC/WD, rounds they didn't play get +6 penalty
+  if (!s.mc || s.wd) {
+    // rounds they actually played have data
+    if (s.rounds[round - 1] !== null && s.rounds[round - 1] !== undefined) return s.rounds[round - 1];
+    return 6; // penalty round
+  }
+  const v = s.rounds[round - 1];
+  return (v === null || v === undefined) ? null : v;
+}
+
+// Team score for a specific round
+function teamRoundScore(e, round) {
+  const useR = round || currentRound;
+  const ss = golfers(e).map(n => golferRoundScore(n, useR));
+  // null = not played yet, treat as 0 for display but mark as not started
+  const vals = ss.map(v => v === null ? 0 : v);
+  if (useR <= 2) return vals.reduce((a,b)=>a+b,0);
+  return [...vals].sort((a,b)=>a-b).slice(0,4).reduce((a,b)=>a+b,0);
+}
+
+// Has a round started (any player has a score for it)?
+function roundHasData(round) {
+  return players.some(p => p.rounds[round-1] !== null && p.rounds[round-1] !== undefined);
 }
 
 function fmt(s) {
@@ -698,7 +933,21 @@ function renderOverall() {
 // ─── Render Daily ────────────────────────────────────────────────────────────
 function renderDaily() {
   const q = (document.getElementById('s-daily')?.value || '').toLowerCase();
-  const scored = POOL.map(e => ({...e, score: teamToday(e)}));
+  // Auto-select the current active round in the dropdown
+  const sel = document.getElementById('round-select');
+  if (sel) {
+    // Auto-advance to current round unless user manually picked one
+    if (!sel._manuallySet) sel.value = String(currentRound);
+    // Mark manual selection on change
+    if (!sel._listenerAdded) {
+      sel.addEventListener('change', () => { sel._manuallySet = true; });
+      sel._listenerAdded = true;
+    }
+  }
+  const viewRound = parseInt(sel?.value || currentRound);
+  const started = roundHasData(viewRound);
+
+  const scored = POOL.map(e => ({...e, score: teamRoundScore(e, viewRound)}));
   scored.sort((a,b) => a.score - b.score);
   let rank = 1;
   scored.forEach((e,i) => {
@@ -710,23 +959,47 @@ function renderDaily() {
   const dl = document.getElementById('d-leader');
   const dls = document.getElementById('d-leader-sc');
   if (filtered.length && dl) {
-    dl.textContent = filtered[0].name;
-    dls.textContent = fmt(filtered[0].score);
-    dls.className = 'metric-sub ' + sc(filtered[0].score);
+    dl.textContent = started ? filtered[0].name : '—';
+    if (dls) { dls.textContent = started ? fmt(filtered[0].score) : '—'; dls.className = 'metric-sub ' + sc(filtered[0].score); }
   }
+
+  // Update scoring note
+  const note = document.getElementById('scoring-note');
+  if (note) note.textContent = viewRound <= 2 ? 'R1 & R2: all 6 golfers count' : 'R3 & R4: top 4 golfers count';
+
+  const [g1,g2,g3,g4,g5,g6] = ['t1','t2','t3','t4','wc1','wc2'];
+  const labels = ['T1','T2','T3','T4','WC1','WC2'];
+  const picks = [g1,g2,g3,g4,g5,g6];
 
   const tbody = document.getElementById('daily-body');
   if (!tbody) return;
-  tbody.innerHTML = filtered.slice(0, 60).map(e => {
-    const gs = golfers(e).map(n => {
-      const s = getScore(n);
-      return s ? `${n.split(' ').pop()} <span class="${sc(s.today)}">${fmt(s.today)}</span>` : '';
-    }).filter(Boolean);
+
+  const fmtRound = (name, round) => {
+    const s = getScore(name);
+    if (!s) return '<span style="color:var(--text3)">—</span>';
+    const hasRound = s.rounds[round-1] !== null && s.rounds[round-1] !== undefined;
+    if (!hasRound) {
+      // MC/WD players who didn't play: show penalty
+      if (!s.mc || s.wd) return '<span class="badge badge-mc" style="font-size:10px">+6</span>';
+      return '<span style="color:var(--text3)">E</span>';
+    }
+    const v = s.rounds[round-1];
+    // MC badge on golfer cell for cut players
+    const mcTag = (!s.mc && !s.wd) ? ' <span class="badge badge-mc" style="font-size:9px;padding:0 3px">MC</span>' : '';
+    const wdTag = s.wd ? ' <span class="badge badge-wd" style="font-size:9px;padding:0 3px">WD</span>' : '';
+    return `<span class="${sc(v)}">${fmt(v)}</span>${mcTag}${wdTag}`;
+  };
+
+  tbody.innerHTML = filtered.map(e => {
+    const cells = picks.map((p,i) => {
+      const name = e[p];
+      return `<td style="font-size:12px;text-align:center">${fmtRound(name, viewRound)}</td>`;
+    }).join('');
     return `<tr>
       <td>${rb(e.rank)}</td>
-      <td class="fw">${e.name}</td>
-      <td class="${sc(e.score)}">${fmt(e.score)}</td>
-      <td style="font-size:11px;color:var(--text2)">${gs.slice(0,3).join(' · ')}</td>
+      <td class="fw" style="white-space:nowrap">${e.name}</td>
+      <td class="${sc(e.score)}" style="white-space:nowrap">${started ? fmt(e.score) : 'E'}</td>
+      ${cells}
     </tr>`;
   }).join('');
 }
@@ -949,11 +1222,34 @@ function renderMyTeam() {
     </div>`;
   }).join('');
 
+  // Build per-round team scores
+  const roundScores = [1,2,3,4].map(r => {
+    const hasData = roundHasData(r);
+    if (!hasData) return null;
+    return teamRoundScore(entry, r);
+  });
+
+  // Determine which rounds have been played (have data)
+  const roundLabels = [1,2,3,4].map(r => {
+    const v = roundScores[r-1];
+    if (v === null) return `<div style="font-size:9px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">R${r}</div><div style="font-size:20px;font-weight:700;color:var(--text3)">—</div><div style="font-size:9px;color:var(--text3);margin-top:1px">not played</div>`;
+    const prize = r <= 2 ? 'All 6 count' : 'Top 4 count';
+    const isActive = r === currentRound;
+    return `<div style="font-size:9px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">R${r}${isActive ? ' <span style="font-size:8px;background:var(--green);color:#fff;border-radius:3px;padding:0 3px;vertical-align:middle">LIVE</span>' : ''}</div><div style="font-size:20px;font-weight:700" class="${sc(v)}">${fmt(v)}</div><div style="font-size:9px;color:var(--text3);margin-top:1px">${prize}</div>`;
+  });
+
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:1.2rem">
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px">
       <div class="metric"><div class="metric-label">Pool Score</div><div class="metric-val ${sc(teamPoolScore)}">${fmt(teamPoolScore)}</div></div>
       <div class="metric"><div class="metric-label">Pool Rank</div><div class="metric-val">${rank}</div><div class="metric-sub">of ${POOL.length}</div></div>
       <div class="metric"><div class="metric-label">Today</div><div class="metric-val ${sc(teamDailyScore)}">${fmt(teamDailyScore)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:1.2rem">
+      ${roundLabels.map((label, i) => {
+        const v = roundScores[i];
+        const isActive = (i+1) === currentRound;
+        return `<div class="metric" style="${isActive ? 'border-color:var(--green);box-shadow:0 0 0 1px var(--green)' : ''}">${label}</div>`;
+      }).join('')}
     </div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-align:center">
       ${currentRound <= 2 ? 'All 6 golfers count today (R1 &amp; R2)' : 'Top 4 golfers count today (R3 &amp; R4) · green border = counting'}
@@ -1010,6 +1306,8 @@ if (URL_TEAM) {
   }
 }
 
+loadLocalLocks();
+loadLockedRoundsFromSheet().catch(()=>{});
 fetchScores();
 setInterval(() => fetchScores(), 5 * 60 * 1000);
 </script>
