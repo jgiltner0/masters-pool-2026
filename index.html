@@ -190,7 +190,7 @@
     <div class="search-row"><input id="s-overall" type="text" placeholder="Search name..." oninput="renderOverall()"></div>
     <div class="how-it-works">
       <div class="hiw-title">How overall scoring works</div>
-      Each team picks <strong>6 golfers</strong> across 4 tiers + 2 wild cards. Your team score is the <strong>combined total of your best 4 golfers</strong> (lowest to par) across all completed rounds. Golfers who <strong>miss the cut</strong> or withdraw receive a <strong>+6 penalty per remaining round</strong> (max +12 over R3 &amp; R4). Lower is better — the pool leader has the lowest cumulative score.
+      Each team picks <strong>6 golfers</strong> across 4 tiers + 2 wild cards. Your team score is the <strong>best 4 of your 6 golfers</strong> (lowest to par) across all completed rounds — this applies from Round 1 onwards. Golfers who <strong>miss the cut</strong> receive a flat <strong>+12 penalty</strong> (+6 for each of R3 &amp; R4 they won't play). Lower is better.
     </div>
     <div class="card"><table><thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Key golfers</th></tr></thead><tbody id="overall-body"></tbody></table></div>
     <div class="pgs" id="overall-pgs"></div>
@@ -216,7 +216,7 @@
     </div>
     <div class="how-it-works" id="daily-how-it-works">
       <div class="hiw-title">How daily scoring works</div>
-      <span id="daily-hiw-text">This tab shows each team's score for a single round. Use the dropdown to switch rounds. <strong>Rounds 1 &amp; 2:</strong> all 6 golfers count toward your daily score. <strong>Rounds 3 &amp; 4:</strong> only your <strong>top 4</strong> (lowest scores) count. Columns show each golfer's score for that round — <strong>E</strong> means the round hasn't been played yet, and a <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means the golfer missed the cut and receives a +6 penalty.</span>
+      <span id="daily-hiw-text">This tab shows each team's score for a single round. Use the dropdown to switch rounds. <strong>Daily prize R1 &amp; R2:</strong> all 6 golfers count. <strong>Daily prize R3 &amp; R4:</strong> only your top 4 count. Note: the <em>overall pool score</em> always uses best 4 of 6, even in R1 &amp; R2. Columns show each golfer's score for that round — <strong>E</strong> means the round hasn't been played yet, and a <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means the golfer missed the cut and receives a +6 penalty.</span>
     </div>
     <div class="card" style="overflow-x:auto"><table><thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>WC1</th><th>WC2</th></tr></thead><tbody id="daily-body"></tbody></table></div>
     <div class="scoring-note" id="scoring-note">R1 &amp; R2: all 6 golfers count · R3 &amp; R4: top 4 only</div>
@@ -292,7 +292,7 @@
     </div>
     <div class="how-it-works" style="margin-top:0">
       <div class="hiw-title">How to read your scorecard</div>
-      Your 6 golfers are shown across <strong>4 tiers + 2 wild cards</strong>. The <strong>overall score</strong> uses your best 4 of 6 golfers' cumulative totals. In <strong>R3 &amp; R4</strong> only your top 4 for that day count — golfers counting toward your score are <span style="background:var(--green-light);color:var(--green);font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600">highlighted green</span>. A <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means that golfer missed the cut and carries a +6 penalty per remaining round.
+      Your 6 golfers are shown across <strong>4 tiers + 2 wild cards</strong>. The <strong>overall score</strong> always uses your best 4 of 6 golfers' cumulative totals (all rounds). For the <strong>daily prize</strong>, R1 &amp; R2 count all 6; R3 &amp; R4 count only your top 4 for that day — golfers counting toward your score are <span style="background:var(--green-light);color:var(--green);font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600">highlighted green</span>. A <span style="background:#fde8e8;color:#c0392b;font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600">MC</span> badge means that golfer missed the cut and carries a +6 penalty per remaining round.
     </div>
     <div id="myteam-container"></div>
   </div>
@@ -470,7 +470,7 @@ function parseESPN(data) {
     if (lockLabel) lockLabel.textContent = currentRound;
     const lockStatus = document.getElementById('lock-status');
     if (lockStatus) {
-      const locked = Object.keys(lockedRounds).map(Number).filter(r => r < currentRound);
+      const locked = Object.keys(lockedRounds).filter(k => k !== 'all').map(Number).filter(r => !isNaN(r) && r < currentRound);
       lockStatus.textContent = locked.length
         ? `R${locked.join(',')} locked · R${currentRound} live`
         : `R${currentRound} live · no rounds locked yet`;
@@ -497,7 +497,14 @@ function parseESPN(data) {
 
       // linescores: one entry per round, each is that round's to-par score
       const ls = (c.linescores || []);
-      const rounds = ls.map(r => parseScore(r.displayValue));
+      // Pad rounds to 4 slots so indexing is always consistent
+      const rawRounds = ls.map(r => parseScore(r.displayValue));
+      const rounds = [
+        rawRounds[0] !== undefined ? rawRounds[0] : null,
+        rawRounds[1] !== undefined ? rawRounds[1] : null,
+        rawRounds[2] !== undefined ? rawRounds[2] : null,
+        rawRounds[3] !== undefined ? rawRounds[3] : null,
+      ];
 
       // Today = the most recent round linescore (in-progress or completed)
       const today = rounds.length > 0 ? (rounds[rounds.length - 1] ?? 0) : 0;
@@ -796,15 +803,23 @@ function getScore(name) {
     e.name.split(' ').pop().toLowerCase() === name.split(' ').pop().toLowerCase()
   );
   if (locked) {
-    // Override each round slot where locked data exists
+    // For completed rounds (before current), locked data is authoritative
+    // For the live round, prefer ESPN's live in-progress score
     locked.rounds.forEach((v, i) => {
-      if (v !== null && v !== undefined) merged.rounds[i] = v;
+      const roundNum = i + 1;
+      if (v !== null && v !== undefined) {
+        // Always use locked data for completed rounds
+        // Use locked data for current round too if ESPN doesn't have it
+        if (roundNum < currentRound || merged.rounds[i] === null || merged.rounds[i] === undefined) {
+          merged.rounds[i] = v;
+        }
+      }
     });
-    // mc/wd from locked data is authoritative for completed rounds
+    // mc/wd from locked data is authoritative
     merged.mc = locked.mc;
     merged.wd = locked.wd;
   }
-  // Recompute total from rounds
+  // Recompute total from all rounds
   const played = merged.rounds.filter(r => r !== null);
   if (played.length) merged.total = played.reduce((a,b)=>a+b,0);
   return merged;
@@ -817,10 +832,15 @@ function teamTotal(e) {
   const ss = golfers(e).map(n => {
     const s = getScore(n);
     if (!s) return 0;
-    if (s.wd || !s.mc) return 6 * Math.max(0, 4 - currentRound + 1) + (s.r1||0) + (s.r2||0);
+    if (s.wd || !s.mc) {
+      // Cut is decided after R2. Penalty = +6 each for R3 & R4 = flat +12.
+      // During R1/R2: cut not yet decided, use their actual cumulative score.
+      if (currentRound <= 2) return s.total;
+      return 12;  // flat +12 always once cut is decided
+    }
     return s.total;
   });
-  if (currentRound <= 2) return ss.reduce((a,b)=>a+b,0);
+  // Overall is always best 4 of 6
   return [...ss].sort((a,b)=>a-b).slice(0,4).reduce((a,b)=>a+b,0);
 }
 
@@ -834,11 +854,14 @@ function teamToday(e) {
 function golferRoundScore(name, round) {
   const s = getScore(name);
   if (!s) return null;
-  // If player MC/WD, rounds they didn't play get +6 penalty
   if (!s.mc || s.wd) {
-    // rounds they actually played have data
-    if (s.rounds[round - 1] !== null && s.rounds[round - 1] !== undefined) return s.rounds[round - 1];
-    return 6; // penalty round
+    // R1 and R2: cut not yet decided — show their actual round score if available
+    if (round <= 2) {
+      const v = s.rounds[round - 1];
+      return (v === null || v === undefined) ? null : v;
+    }
+    // R3 and R4: player missed the cut, show +6 penalty per round
+    return 6;
   }
   const v = s.rounds[round - 1];
   return (v === null || v === undefined) ? null : v;
@@ -1217,12 +1240,22 @@ function renderMyTeam() {
     const mcBadge = s && !s.mc && !s.wd ? '<span class="badge badge-mc" style="margin-left:4px">MC</span>' : '';
     const wdBadge = s?.wd ? '<span class="badge badge-wd" style="margin-left:4px">WD</span>' : '';
     const totalCls = s ? sc(s.total) : 'se';
-    const contributing = currentRound <= 2 ? true :
-      (() => {
-        const allTotals = picks.map(pp => { const ss = getScore(pp.name); return ss ? ss.total : 0; }).sort((a,b)=>a-b);
-        const threshold = allTotals[3]; // 4th best = cutoff
-        return (s ? s.total : 0) <= threshold;
+    // Overall always uses best 4 of 6 — highlight the 4 counting golfers regardless of round
+    const contributing = (() => {
+      const allTotals = picks.map(pp => {
+        const ss = getScore(pp.name);
+        if (!ss) return 0;
+        if (ss.wd || !ss.mc) return currentRound <= 2 ? ss.total : 12;
+        return ss.total;
+      }).sort((a,b) => a-b);
+      const threshold = allTotals[3]; // 4th best score = cutoff
+      const myScore = (() => {
+        if (!s) return 0;
+        if (s.wd || !s.mc) return currentRound <= 2 ? s.total : 12;
+        return s.total;
       })();
+      return myScore <= threshold;
+    })();
 
     return `
     <div style="background:var(--bg);border:${contributing ? '1.5px solid var(--green)' : '0.5px solid var(--border)'};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px">
@@ -1235,7 +1268,7 @@ function renderMyTeam() {
         <div style="text-align:right">
           <div style="font-size:28px;font-weight:700" class="${totalCls}">${s ? fmt(s.total) : '—'}</div>
           <div style="font-size:12px;color:var(--text2)">Today: <span class="${s ? sc(s.today) : 'se'}">${s ? fmt(s.today) : '—'}</span></div>
-          ${contributing && currentRound >= 3 ? '<div style="font-size:10px;color:var(--green);font-weight:600;margin-top:2px">▲ COUNTING</div>' : ''}
+          ${contributing ? '<div style="font-size:10px;color:var(--green);font-weight:600;margin-top:2px">▲ COUNTING</div>' : ''}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;border-top:0.5px solid var(--border);padding-top:10px">
@@ -1259,7 +1292,7 @@ function renderMyTeam() {
   const roundLabels = [1,2,3,4].map(r => {
     const v = roundScores[r-1];
     if (v === null) return `<div style="font-size:9px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">R${r}</div><div style="font-size:20px;font-weight:700;color:var(--text3)">—</div><div style="font-size:9px;color:var(--text3);margin-top:1px">not played</div>`;
-    const prize = r <= 2 ? 'All 6 count' : 'Top 4 count';
+    const prize = r <= 2 ? 'Daily: all 6' : 'Daily: top 4';
     const isActive = r === currentRound;
     return `<div style="font-size:9px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">R${r}${isActive ? ' <span style="font-size:8px;background:var(--green);color:#fff;border-radius:3px;padding:0 3px;vertical-align:middle">LIVE</span>' : ''}</div><div style="font-size:20px;font-weight:700" class="${sc(v)}">${fmt(v)}</div><div style="font-size:9px;color:var(--text3);margin-top:1px">${prize}</div>`;
   });
@@ -1278,7 +1311,7 @@ function renderMyTeam() {
       }).join('')}
     </div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-align:center">
-      ${currentRound <= 2 ? 'All 6 golfers count today (R1 &amp; R2)' : 'Top 4 golfers count today (R3 &amp; R4) · green border = counting'}
+      Green border = counting toward your pool score (best 4 of 6) · Daily prize R1&amp;R2 uses all 6
     </div>
     ${golferCards}
     <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px">Tiebreaker prediction: ${entry.tb > 0 ? '+' : ''}${entry.tb}</div>
