@@ -589,7 +589,9 @@ function loadLocalLocks() {
 // Load locked scores from Google Sheet (public CSV export)
 async function loadLockedRoundsFromSheet() {
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_SCORES_TAB)}`;
+    // Primary source: standalone locked scores CSV in Drive (publicly readable)
+    const CSV_LOCKED_ID = '195KpLZ4QjIEhR_H_ltSy6yGmk9QIQBDVDUNuFcuByH8';
+    const url = `https://drive.google.com/uc?export=download&id=${CSV_LOCKED_ID}`;
     const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) { log('Sheet fetch returned ' + r.status); return; }
     const text = await r.text();
