@@ -184,7 +184,7 @@
     <div class="metrics">
       <div class="metric"><div class="metric-label">Leader</div><div class="metric-val" id="m-leader" style="font-size:13px">—</div><div class="metric-sub" id="m-leader-sc">—</div></div>
       <div class="metric"><div class="metric-label">1st Prize</div><div class="metric-val">$900</div></div>
-      <div class="metric"><div class="metric-label">Cut Line</div><div class="metric-val" id="m-cut">—</div></div>
+      <div class="metric"><div class="metric-label" id="m-cut-label">Cut Line</div><div class="metric-val" id="m-cut">—</div></div>
       <div class="metric"><div class="metric-label">Round</div><div class="metric-val" id="m-round">—</div></div>
     </div>
     <div class="search-row"><input id="s-overall" type="text" placeholder="Search name..." oninput="renderOverall()"></div>
@@ -227,7 +227,7 @@
   <div id="panel-tourney" class="panel">
     <div class="metrics">
       <div class="metric"><div class="metric-label">Leader</div><div class="metric-val" id="t-leader" style="font-size:13px">—</div><div class="metric-sub" id="t-leader-sc" style="color:var(--green)">—</div></div>
-      <div class="metric"><div class="metric-label">Cut Line</div><div class="metric-val" id="t-cut">—</div></div>
+      <div class="metric"><div class="metric-label" id="t-cut-label">Cut Line</div><div class="metric-val" id="t-cut">—</div></div>
       <div class="metric"><div class="metric-label">Round</div><div class="metric-val" id="t-round">—</div></div>
       <div class="metric"><div class="metric-label">Updated</div><div class="metric-val" id="t-upd" style="font-size:11px;padding-top:4px">—</div></div>
     </div>
@@ -917,20 +917,85 @@ function updatePoolLeader() {
 }
 
 function updateStatusBar(event, status) {
+  // Derive actual round status from player data rather than trusting ESPN's string
   const pr = document.getElementById('pill-round');
-  if (pr) pr.innerHTML = `<span class="live-dot"></span>Round ${currentRound} · ${status}`;
+  if (pr) {
+    // Check how many players have a score for the current round
+    const playersWithRound = players.filter(p =>
+      p.rounds[currentRound - 1] !== null && p.rounds[currentRound - 1] !== undefined
+    ).length;
+    const totalActive = players.filter(p => p.mc || p.wd).length || players.length;
+
+    let roundLabel, pillClass, dotHtml;
+    if (playersWithRound === 0) {
+      // No scores yet for this round
+      roundLabel = `Round ${currentRound} · Not Started`;
+      pillClass = 'pill';
+      dotHtml = '';
+    } else if (currentRound === 4 && playersWithRound > 0 &&
+               players.filter(p => p.mc && !p.wd).every(p =>
+                 p.rounds[3] !== null && p.rounds[3] !== undefined)) {
+      // All active players finished R4
+      roundLabel = `Round ${currentRound} · Final`;
+      pillClass = 'pill gold';
+      dotHtml = '';
+    } else {
+      // Check if all players who should have scores do
+      // A round is "Complete" when ESPN's status description says so, OR
+      // when all active (made-cut in R3/R4) players have a score
+      const activePlayers = currentRound <= 2
+        ? players
+        : players.filter(p => p.mc && !p.wd);
+      const allDone = activePlayers.length > 0 &&
+        activePlayers.every(p =>
+          p.rounds[currentRound - 1] !== null && p.rounds[currentRound - 1] !== undefined
+        );
+      const espnComplete = status && (
+        status.toLowerCase().includes('complete') ||
+        status.toLowerCase().includes('final') ||
+        status.toLowerCase().includes('end')
+      );
+      if (allDone || espnComplete) {
+        roundLabel = `Round ${currentRound} · Complete`;
+        pillClass = 'pill gold';
+        dotHtml = '';
+      } else {
+        roundLabel = `Round ${currentRound} · In Progress`;
+        pillClass = 'pill live';
+        dotHtml = '<span class="live-dot"></span>';
+      }
+    }
+    pr.className = pillClass;
+    pr.innerHTML = `${dotHtml}${roundLabel}`;
+  }
 
   // Pool leader (pill + Overall tab) — computed from pool standings
   updatePoolLeader();
   // Tournament tab leader is updated by renderTourney() with computed positions
   ['m-cut','t-cut'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && cutScore !== null) el.textContent = fmt(cutScore);
+    if (!el) return;
+    if (cutScore === null) { el.textContent = '—'; return; }
+    if (currentRound <= 2) {
+      // Cut not yet decided — show projected
+      el.textContent = fmt(cutScore);
+      el.title = 'Projected cut line';
+    } else {
+      // Cut decided after R2 — show final cut line clearly
+      const strokes = 144 + cutScore; // 2 rounds × par 72
+      el.innerHTML = `${fmt(cutScore)}<span style="font-size:11px;color:var(--text3);display:block;margin-top:1px">${strokes} strokes</span>`;
+    }
   });
   ['m-round','t-round'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = currentRound;
   });
+  // Update cut label text based on whether cut has been decided
+  ['m-cut-label','t-cut-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = currentRound <= 2 ? 'Proj. Cut' : 'Cut (After R2)';
+  });
+
   if (lastFetch) {
     const ts = lastFetch.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     const el = document.getElementById('t-upd');
@@ -1117,7 +1182,10 @@ function renderTourney() {
   let cutShown = false;
   list.forEach(p => {
     if (!cutShown && cutScore !== null && p.mc !== false && !p.wd && p.total > cutScore) {
-      rows += `<tr class="cutrow"><td colspan="8">— Projected cut: ${fmt(cutScore)} —</td></tr>`;
+      const cutLabel = currentRound <= 2
+        ? `— Projected cut: ${fmt(cutScore)} —`
+        : `— Cut line: ${fmt(cutScore)} (${144 + cutScore} strokes) — Players below did not advance —`;
+      rows += `<tr class="cutrow"><td colspan="8">${cutLabel}</td></tr>`;
       cutShown = true;
     }
     const isMC = !p.mc && !p.wd;
